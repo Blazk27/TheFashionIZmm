@@ -35,6 +35,8 @@ export interface ShopSettings {
   aya_name: string;
   kbz_account: string;
   kbz_name: string;
+  viber_number: string;
+  viber_channel: string;
   admin_password: string;
 }
 
@@ -60,6 +62,8 @@ const DEFAULT_SETTINGS: ShopSettings = {
   aya_name: 'The Fashion By IZ',
   kbz_account: '',
   kbz_name: 'The Fashion By IZ',
+  viber_number: '',
+  viber_channel: '',
   admin_password: '1977',
 };
 
@@ -454,16 +458,37 @@ export function AdminPage() {
                   <div key={order.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <p className="font-bold text-gray-800 font-mono">{order.order_number}</p>
-                        <p className="text-gray-600 font-medium">{order.customer_name}</p>
-                        <p className="text-gray-400 text-sm">{order.phone}</p>
-                        <p className="text-gray-400 text-sm">{order.address}</p>
+                        <p className="font-bold text-gray-800 font-mono text-sm">{order.order_number}</p>
+                        <p className="text-gray-700 font-semibold">{order.customer_name}</p>
+                        <p className="text-gray-400 text-sm">📱 {order.phone}</p>
+                        <p className="text-gray-400 text-sm">📍 {order.address}</p>
+                        {order.notes && <p className="text-gray-400 text-sm">💬 {order.notes}</p>}
                       </div>
                       <div className="text-right">
                         <p className="text-blue-600 font-bold text-lg">{formatPrice(order.total)}</p>
                         <p className="text-gray-400 text-xs">{order.payment_method.toUpperCase()}</p>
                         <p className="text-gray-300 text-xs mt-1">{new Date(order.created_at).toLocaleDateString()}</p>
                       </div>
+                    </div>
+                    {/* Product Items */}
+                    <div className="mb-3 bg-blue-50 rounded-xl p-3 space-y-2">
+                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-2">🛒 Order Items</p>
+                      {order.items && order.items.map((item: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          {item.product?.image_url && (
+                            <img src={item.product.image_url} alt={item.product.title}
+                              className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-blue-100" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-gray-800 font-medium text-sm truncate">{item.product?.title}</p>
+                            <p className="text-gray-400 text-xs">{item.product?.category}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-blue-600 font-bold text-sm">{formatPrice(item.product?.price * item.quantity)}</p>
+                            <p className="text-gray-400 text-xs">x{item.quantity} ခု</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       {(['pending', 'confirmed', 'delivering', 'completed', 'cancelled'] as OrderStatus[]).map((status) => (
@@ -542,6 +567,8 @@ export function AdminPage() {
                 { label: '✈️ Telegram Handle', key: 'telegram_handle', placeholder: '@thefashion_mm' },
                 { label: '📘 Facebook Page URL', key: 'facebook_url', placeholder: 'https://www.facebook.com/TheFashionbyIZ' },
                 { label: '🎵 TikTok URL', key: 'tiktok_url', placeholder: 'https://www.tiktok.com/@...' },
+                { label: '💜 Viber Number', key: 'viber_number', placeholder: '+95 9 XXX XXX XXX' },
+                { label: '💜 Viber Channel Link', key: 'viber_channel', placeholder: 'https://invite.viber.com/...' },
               ].map(({ label, key, placeholder, textarea }) => (
                 <div key={key}>
                   <label className="block text-sm text-gray-500 mb-1">{label}</label>
