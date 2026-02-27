@@ -31,6 +31,7 @@ export interface Product {
   thc_percent: string;   // repurposed as "sizes" e.g. "S,M,L,XL"
   cbd_percent: string;   // repurposed as "colors" e.g. "Black, White"
   image_url: string;
+  images?: string[];  // multiple images
   is_active: boolean;
   is_featured: boolean;
   stock: number;

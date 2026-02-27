@@ -42,7 +42,7 @@ export function CartDrawer() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-gray-800 font-semibold text-sm truncate">{item.product.title}</p>
-                  <p className="text-blue-600 font-bold">${item.product.price.toFixed(2)}</p>
+                  <p className="text-blue-600 font-bold">{formatPrice(item.product.price)}</p>
                   <div className="flex items-center gap-2 mt-1.5">
                     <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
                       className="w-6 h-6 bg-white border border-blue-100 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-colors">
@@ -69,7 +69,7 @@ export function CartDrawer() {
           <div className="p-4 border-t border-blue-50 space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-500">Total</span>
-              <span className="text-2xl font-bold text-blue-600">${total.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-blue-600">{formatPrice(total)}</span>
             </div>
             <Link to="/checkout" onClick={() => setIsCartOpen(false)}
               className="w-full btn-primary rounded-xl py-3.5 gap-2 text-base">

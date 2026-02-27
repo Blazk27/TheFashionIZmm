@@ -1,3 +1,4 @@
+import { formatPrice } from '../lib/currency';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ShoppingCart, CreditCard, Check, Loader2, Smartphone, Building2 } from 'lucide-react';
@@ -62,9 +63,9 @@ export function CheckoutPage() {
 📍 ${order.address}${order.notes ? `\n💬 ${order.notes}` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━
 🛒 ITEMS:
-${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} ($${(i.product.price * i.quantity).toFixed(2)})`).join('\n')}
+${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} (${formatPrice((i.product.price * i.quantity))})`).join('\n')}
 ━━━━━━━━━━━━━━━━━━━━━━
-💰 TOTAL: $${order.total.toFixed(2)}
+💰 TOTAL: ${formatPrice(order.total)}
 💳 PAYMENT: ${order.payment_method.toUpperCase()}
 ⏰ ${new Date(order.created_at).toLocaleString()}`;
     try {
@@ -254,16 +255,16 @@ ${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} ($${(i.pro
                       <p className="text-gray-800 font-medium text-sm truncate">{item.product.title}</p>
                       <p className="text-gray-400 text-xs">Qty: {item.quantity}</p>
                     </div>
-                    <p className="text-blue-600 font-bold text-sm">${(item.product.price * item.quantity).toFixed(2)}</p>
+                    <p className="text-blue-600 font-bold text-sm">{formatPrice((item.product.price * item.quantity))}</p>
                   </div>
                 ))}
               </div>
 
               <div className="border-t border-blue-50 pt-4 space-y-2 mb-5">
-                <div className="flex justify-between text-gray-400 text-sm"><span>Subtotal</span><span>${total.toFixed(2)}</span></div>
+                <div className="flex justify-between text-gray-400 text-sm"><span>Subtotal</span><span>{formatPrice(total)}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-gray-400">Delivery</span><span className="text-emerald-500 font-medium">Free 🎁</span></div>
                 <div className="flex justify-between text-gray-800 font-bold text-lg pt-2 border-t border-blue-50">
-                  <span>Total</span><span className="text-blue-600">${total.toFixed(2)}</span>
+                  <span>Total</span><span className="text-blue-600">{formatPrice(total)}</span>
                 </div>
               </div>
 
@@ -271,7 +272,7 @@ ${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} ($${(i.pro
                 className="w-full btn-primary py-4 rounded-xl text-base gap-2">
                 {isSubmitting
                   ? <><Loader2 className="w-5 h-5 animate-spin" />Placing Order...</>
-                  : <>Place Order — ${total.toFixed(2)}</>
+                  : <>Place Order — {formatPrice(total)}</>
                 }
               </button>
 

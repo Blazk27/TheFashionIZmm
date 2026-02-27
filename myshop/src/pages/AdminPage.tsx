@@ -1,3 +1,4 @@
+import { formatPrice } from '../lib/currency';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -9,6 +10,7 @@ import {
 import { useProducts } from '../context/ProductContext';
 import { Product, Order, ProductCategory, PRODUCT_CATEGORIES, OrderStatus, DEFAULT_INVENTORY, STOCK_LOCATIONS } from '../types';
 import { db, ADMIN_PASSWORD } from '../lib/firebase';
+import { formatPrice } from '../lib/currency';
 import { collection, getDocs, doc, updateDoc, addDoc, deleteDoc, query, orderBy, setDoc, getDoc } from 'firebase/firestore';
 
 // ─── Shop Settings Type ───────────────────────────────────────────────────────
@@ -351,7 +353,7 @@ export function AdminPage() {
                 { label: 'Total Products', value: products.length, icon: Package, color: 'bg-blue-500' },
                 { label: 'Total Orders', value: orders.length, icon: ShoppingCart, color: 'bg-indigo-500' },
                 { label: 'Pending Orders', value: pendingOrders, icon: ShoppingCart, color: 'bg-amber-500' },
-                { label: 'Total Revenue', value: `$${totalRevenue.toFixed(0)}`, icon: CreditCard, color: 'bg-emerald-500' },
+                { label: 'Total Revenue', value: `${formatPrice(totalRevenue)}`, icon: CreditCard, color: 'bg-emerald-500' },
               ].map((stat) => (
                 <div key={stat.label} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
                   <div className={`w-10 h-10 ${stat.color} rounded-xl flex items-center justify-center mb-3`}>
@@ -407,7 +409,7 @@ export function AdminPage() {
                       <h3 className="font-semibold text-gray-800 text-sm leading-tight">{product.title}</h3>
                       <span className={`ml-2 flex-shrink-0 w-2 h-2 rounded-full mt-1 ${product.is_active ? 'bg-emerald-400' : 'bg-red-400'}`} />
                     </div>
-                    <p className="text-blue-600 font-bold">${product.price.toFixed(2)}</p>
+                    <p className="text-blue-600 font-bold">{formatPrice(product.price)}</p>
                     <p className="text-gray-400 text-xs mb-3">{product.category} • Stock: {product.stock}</p>
                     <div className="flex gap-2">
                       <button onClick={() => { setEditingProduct(product); setIsProductModalOpen(true); }}
@@ -459,7 +461,7 @@ export function AdminPage() {
                         <p className="text-gray-400 text-sm">{order.address}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-blue-600 font-bold text-lg">${order.total.toFixed(2)}</p>
+                        <p className="text-blue-600 font-bold text-lg">{formatPrice(order.total)}</p>
                         <p className="text-gray-400 text-xs">{order.payment_method.toUpperCase()}</p>
                         <p className="text-gray-300 text-xs mt-1">{new Date(order.created_at).toLocaleDateString()}</p>
                       </div>
@@ -716,6 +718,7 @@ function ProductModalForm({ product, onSave, onClose }: {
     stock: product?.stock || 100,
     inventory: product?.inventory || DEFAULT_INVENTORY,
     origin: product?.origin || '',
+    images: product?.images || [],
     is_featured: product?.is_featured || false,
     is_active: product?.is_active ?? true,
   });
@@ -774,14 +777,64 @@ function ProductModalForm({ product, onSave, onClose }: {
             </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-500 mb-1">Image URL</label>
-            <input type="url" value={formData.image_url}
+            <label className="block text-sm text-gray-500 mb-2">Product Images (up to 3)</label>
+            
+            {/* Upload from device */}
+            <div className="mb-3">
+              <label className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-blue-200 rounded-xl cursor-pointer hover:bg-blue-50 transition-colors text-blue-500 text-sm font-medium">
+                <span>📱 Upload from Phone/Laptop</span>
+                <input type="file" accept="image/*" multiple className="hidden"
+                  onChange={async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    const newUrls: string[] = [];
+                    for (const file of files.slice(0, 3)) {
+                      const base64 = await new Promise<string>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result as string);
+                        reader.readAsDataURL(file);
+                      });
+                      newUrls.push(base64);
+                    }
+                    if (newUrls.length > 0) {
+                      setFormData(prev => ({
+                        ...prev,
+                        image_url: newUrls[0],
+                        images: newUrls.slice(1)
+                      }));
+                    }
+                  }}
+                />
+              </label>
+              <p className="text-gray-300 text-xs mt-1 text-center">or paste image URL below</p>
+            </div>
+
+            {/* URL input */}
+            <input type="text" value={formData.image_url}
               onChange={e => setFormData({ ...formData, image_url: e.target.value })}
-              className="input-field" placeholder="https://..." />
-            {formData.image_url && (
-              <img src={formData.image_url} alt="preview"
-                className="mt-2 w-full h-32 object-cover rounded-xl border border-gray-100"
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              className="input-field mb-2" placeholder="https://... (paste image link)" />
+
+            {/* Extra image URLs */}
+            {[0, 1].map(i => (
+              <input key={i} type="text"
+                value={(formData.images || [])[i] || ''}
+                onChange={e => {
+                  const imgs = [...(formData.images || ['', ''])];
+                  imgs[i] = e.target.value;
+                  setFormData({ ...formData, images: imgs });
+                }}
+                className="input-field mb-2 text-sm"
+                placeholder={`Image ${i + 2} URL (optional)`} />
+            ))}
+
+            {/* Preview */}
+            {[formData.image_url, ...(formData.images || [])].filter(Boolean).length > 0 && (
+              <div className="flex gap-2 mt-2">
+                {[formData.image_url, ...(formData.images || [])].filter(Boolean).map((url, i) => (
+                  <img key={i} src={url} alt={`preview ${i+1}`}
+                    className="w-20 h-20 object-cover rounded-xl border border-gray-100 flex-shrink-0"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                ))}
+              </div>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3 items-center">

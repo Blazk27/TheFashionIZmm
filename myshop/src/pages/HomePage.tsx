@@ -1,3 +1,4 @@
+import { formatPrice } from '../lib/currency';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Star, Shield, Truck, ShoppingBag, MapPin, Clock, CheckCircle, MessageCircle, Sparkles, Heart, Zap } from 'lucide-react';

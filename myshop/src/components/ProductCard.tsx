@@ -1,3 +1,4 @@
+import { formatPrice } from '../lib/currency';
 import { useState } from 'react';
 import { ShoppingCart, Star } from 'lucide-react';
 import { Product } from '../types';
@@ -38,6 +39,12 @@ export function ProductCard({ product, onViewDetails }: ProductCardProps) {
           </span>
         </div>
         {/* Badges */}
+        {/* Image count badge */}
+        {product.images && product.images.length > 0 && (
+          <div className="absolute bottom-3 right-3 px-2 py-0.5 bg-black/50 text-white text-xs rounded-lg">
+            📷 {(product.images.length + 1)}
+          </div>
+        )}
         {product.is_featured && (
           <div className="absolute top-3 left-3 px-2.5 py-1 bg-blue-600 text-white text-xs font-bold rounded-lg shadow">
             ⭐ HOT
@@ -68,7 +75,7 @@ export function ProductCard({ product, onViewDetails }: ProductCardProps) {
 
         {/* Price & Cart */}
         <div className="flex items-center justify-between">
-          <span className="text-xl font-bold text-blue-600">${product.price.toFixed(2)}</span>
+          <span className="text-xl font-bold text-blue-600">{formatPrice(product.price)}</span>
           <button onClick={handleAddToCart} disabled={isAdding}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
               isAdding

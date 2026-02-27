@@ -1,3 +1,4 @@
+import { formatPrice } from '../lib/currency';
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Check, Printer, MessageCircle } from 'lucide-react';
@@ -185,8 +186,8 @@ export function InvoicePage() {
                       <tr key={index}>
                         <td className="px-4 py-3 text-gray-800">{item.product.title}</td>
                         <td className="px-4 py-3 text-center text-gray-500">{item.quantity}</td>
-                        <td className="px-4 py-3 text-right text-gray-500">${item.product.price.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right text-gray-800 font-medium">${(item.product.price * item.quantity).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right text-gray-500">{formatPrice(item.product.price)}</td>
+                        <td className="px-4 py-3 text-right text-gray-800 font-medium">{formatPrice((item.product.price * item.quantity))}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -197,11 +198,11 @@ export function InvoicePage() {
             {/* Totals */}
             <div className="flex justify-end">
               <div className="w-64">
-                <div className="flex justify-between py-2 text-gray-500"><span>Subtotal</span><span>${order.total.toFixed(2)}</span></div>
+                <div className="flex justify-between py-2 text-gray-500"><span>Subtotal</span><span>{formatPrice(order.total)}</span></div>
                 <div className="flex justify-between py-2 text-gray-500"><span>Delivery</span><span className="text-green-500">Free</span></div>
                 <div className="flex justify-between py-3 border-t-2 border-blue-600">
                   <span className="text-gray-800 font-semibold">Total</span>
-                  <span className="text-blue-600 font-bold text-xl">${order.total.toFixed(2)}</span>
+                  <span className="text-blue-600 font-bold text-xl">{formatPrice(order.total)}</span>
                 </div>
               </div>
             </div>
