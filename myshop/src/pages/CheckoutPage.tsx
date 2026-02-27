@@ -1,14 +1,14 @@
-import { formatPrice } from '../lib/currency';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ShoppingCart, CreditCard, Check, Loader2, Smartphone, Building2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { CheckoutFormData, PaymentMethod, Order, CartItem } from '../types';
+import { CartItem } from '../types';
 import { db, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from '../lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { loadSettings, loadSettingsFromDB } from './AdminPage';
+import { formatPrice } from '../lib/currency';
 
-type MyanmarPayment = 'cod' | 'kpay' | 'wavepay' | 'aya' | 'kbz_bank';
+type MyanmarPayment = 'kpay' | 'wavepay' | 'aya' | 'kbz_bank' | 'cod';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ export function CheckoutPage() {
     phone: '',
     address: '',
     notes: '',
-    payment_method: 'cod' as MyanmarPayment,
+    payment_method: 'kpay' as MyanmarPayment,
   });
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const total = getTotalPrice();
@@ -33,15 +33,15 @@ export function CheckoutPage() {
   const generateOrderNumber = () => {
     const t = Date.now().toString(36).toUpperCase();
     const r = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `ORD-${t}${r}`;
+    return `ORD-MM${t}${r}`;
   };
 
   const validateForm = () => {
     const e: Partial<Record<string, string>> = {};
-    if (!formData.customer_name.trim()) e.customer_name = 'Name is required';
-    if (!formData.phone.trim()) e.phone = 'Phone number is required';
-    else if (!/^[0-9+\-\s]{8,}$/.test(formData.phone)) e.phone = 'Please enter a valid phone number';
-    if (!formData.address.trim()) e.address = 'Delivery address is required';
+    if (!formData.customer_name.trim()) e.customer_name = 'နာမည် ဖြည့်ပါ';
+    if (!formData.phone.trim()) e.phone = 'ဖုန်းနံပါတ် ဖြည့်ပါ';
+    else if (!/^[0-9+\-\s]{8,}$/.test(formData.phone)) e.phone = 'ဖုန်းနံပါတ် မှန်မှန်ကန်ကန် ထည့်ပါ';
+    if (!formData.address.trim()) e.address = 'လိပ်စာ ဖြည့်ပါ';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -56,18 +56,30 @@ export function CheckoutPage() {
     const token = settings.telegram_bot_token || TELEGRAM_BOT_TOKEN;
     const chatId = settings.telegram_chat_id || TELEGRAM_CHAT_ID;
     if (!token || !chatId) return false;
-    const msg = `🛍️ NEW ORDER: #${order.order_number}
+    const itemsList = order.items.map((i: CartItem) =>
+      `• ${i.product.title} × ${i.quantity} ခု = ${Math.round(i.product.price * i.quantity).toLocaleString()} MMK`
+    ).join('\n');
+    const paymentLabel: Record<string, string> = {
+      kpay: 'KBZ Pay (KPay)',
+      wavepay: 'Wave Pay',
+      aya: 'AYA Bank',
+      kbz_bank: 'KBZ Bank',
+      cod: 'Cash on Delivery',
+    };
+    const msg = `🛍️ အော်ဒါအသစ် — #${order.order_number}
 ━━━━━━━━━━━━━━━━━━━━━━
-👤 ${order.customer_name}
-📱 ${order.phone}
-📍 ${order.address}${order.notes ? `\n💬 ${order.notes}` : ''}
+👤 ဖောက်သည် — ${order.customer_name}
+📱 ဖုန်း — ${order.phone}
+📍 လိပ်စာ — ${order.address}${order.notes ? `\n💬 မှတ်ချက် — ${order.notes}` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━
-🛒 ITEMS:
-${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} (${formatPrice((i.product.price * i.quantity))})`).join('\n')}
+🛒 မှာယူသည့် ပစ္စည်းများ —
+${itemsList}
 ━━━━━━━━━━━━━━━━━━━━━━
-💰 TOTAL: ${formatPrice(order.total)}
-💳 PAYMENT: ${order.payment_method.toUpperCase()}
-⏰ ${new Date(order.created_at).toLocaleString()}`;
+💰 စုစုပေါင်း — ${Math.round(order.total).toLocaleString()} MMK
+💳 ငွေပေးချေမှု — ${paymentLabel[order.payment_method] || order.payment_method}
+⏰ ${new Date(order.created_at).toLocaleString('my-MM')}
+━━━━━━━━━━━━━━━━━━━━━━
+${order.payment_method !== 'cod' ? '📸 ငွေလွှဲ screenshot ပို့ပေးပါ။' : '🚪 တံခါးအရောင်း (COD)'}`;
     try {
       const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
@@ -105,48 +117,66 @@ ${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} (${formatP
       navigate(`/invoice?order=${orderNumber}`);
     } catch (err) {
       console.error('Order failed', err);
-      alert('Failed to place order. Please try again.');
+      alert('အော်ဒါ မထည့်နိုင်ပါ။ နောက်တစ်ကြိမ် ထပ်ကြိုးစားပါ။');
     } finally { setIsSubmitting(false); }
   };
 
   const paymentMethods = [
     {
-      id: 'kpay', label: 'KBZ Pay (KPay)', icon: Smartphone, emoji: '📱',
+      id: 'kpay', label: 'KBZ Pay (KPay)', emoji: '📱',
       color: 'from-blue-500 to-blue-600',
-      detail: settings.kpay_number ? { line1: settings.kpay_number, line2: `Name: ${settings.kpay_name}` } : null
+      detail: settings.kpay_number ? {
+        line1: settings.kpay_number,
+        line2: `နာမည် — ${settings.kpay_name}`,
+        instruction: `📱 KPay မှ ${settings.kpay_number} သို့ ငွေလွှဲပြီး screenshot ကို Telegram/Viber သို့ ပို့ပေးပါ`
+      } : null
     },
     {
-      id: 'wavepay', label: 'Wave Pay', icon: Smartphone, emoji: '🌊',
+      id: 'wavepay', label: 'Wave Pay', emoji: '🌊',
       color: 'from-cyan-500 to-blue-500',
-      detail: settings.wavepay_number ? { line1: settings.wavepay_number, line2: `Name: ${settings.wavepay_name}` } : null
+      detail: settings.wavepay_number ? {
+        line1: settings.wavepay_number,
+        line2: `နာမည် — ${settings.wavepay_name}`,
+        instruction: `🌊 Wave Pay မှ ${settings.wavepay_number} သို့ ငွေလွှဲပြီး screenshot ကို Telegram/Viber သို့ ပို့ပေးပါ`
+      } : null
     },
     {
-      id: 'aya', label: 'AYA Bank Transfer', icon: Building2, emoji: '🏦',
+      id: 'aya', label: 'AYA Bank', emoji: '🏦',
       color: 'from-indigo-500 to-blue-600',
-      detail: settings.aya_account ? { line1: `Account: ${settings.aya_account}`, line2: `Name: ${settings.aya_name}` } : null
+      detail: settings.aya_account ? {
+        line1: `စာရင်းနံပါတ် — ${settings.aya_account}`,
+        line2: `နာမည် — ${settings.aya_name}`,
+        instruction: `🏦 AYA Bank မှ ငွေလွှဲပြီး transaction ID နှင့် screenshot ကို Telegram/Viber သို့ ပို့ပေးပါ`
+      } : null
     },
     {
-      id: 'kbz_bank', label: 'KBZ Bank Transfer', icon: Building2, emoji: '🏦',
+      id: 'kbz_bank', label: 'KBZ Bank Transfer', emoji: '🏦',
       color: 'from-blue-600 to-indigo-600',
-      detail: settings.kbz_account ? { line1: `Account: ${settings.kbz_account}`, line2: `Name: ${settings.kbz_name}` } : null
+      detail: settings.kbz_account ? {
+        line1: `စာရင်းနံပါတ် — ${settings.kbz_account}`,
+        line2: `နာမည် — ${settings.kbz_name}`,
+        instruction: `🏦 KBZ Bank မှ ငွေလွှဲပြီး transaction ID နှင့် screenshot ကို Telegram/Viber သို့ ပို့ပေးပါ`
+      } : null
     },
     {
-      id: 'cod', label: 'Cash on Delivery', icon: CreditCard, emoji: '💵',
+      id: 'cod', label: 'ငွေသားဖြင့် ချေပမည်', emoji: '💵',
       color: 'from-emerald-500 to-green-600',
       detail: null
     },
   ];
 
   const selectedPayment = paymentMethods.find(p => p.id === formData.payment_method);
+  const telegramUrl = settings.telegram_handle ? `https://t.me/${settings.telegram_handle.replace('@', '')}` : null;
+  const viberUrl = settings.viber_number ? `viber://chat?number=${settings.viber_number.replace(/\s/g,'').replace('+','')}` : null;
 
   if (items.length === 0) {
     return (
       <div className="min-h-screen pt-24 pb-16 flex items-center justify-center bg-blue-50">
         <div className="text-center bg-white rounded-2xl p-10 shadow-sm border border-blue-100">
           <ShoppingCart className="w-16 h-16 text-blue-200 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Your cart is empty</h2>
-          <p className="text-gray-400 mb-6">Add some products first</p>
-          <Link to="/shop" className="btn-primary rounded-xl px-8">Browse Products</Link>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">စျေးခြင်းတောင်း ဗလာ နေပါသည်</h2>
+          <p className="text-gray-400 mb-6">ပစ္စည်းများ ထပ်ထည့်ပေးပါ</p>
+          <Link to="/shop" className="btn-primary rounded-xl px-8">ဆိုင်သို့ ပြန်သွားမည်</Link>
         </div>
       </div>
     );
@@ -155,7 +185,8 @@ ${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} (${formatP
   return (
     <div className="min-h-screen pt-20 pb-16 bg-blue-50/50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">Checkout 🛍️</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">အော်ဒါ ထည့်မည် 🛍️</h1>
+        <p className="text-gray-400 mb-8 text-sm">အချက်အလက်များ ဖြည့်ပြီး အော်ဒါပေးပါ</p>
 
         <div className="grid lg:grid-cols-5 gap-8">
 
@@ -164,40 +195,40 @@ ${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} (${formatP
 
             {/* Customer Info */}
             <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-800 mb-4">📋 Your Information</h2>
+              <h2 className="text-lg font-bold text-gray-800 mb-4">📋 ဖောက်သည် အချက်အလက်</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-500 mb-1">Full Name *</label>
+                  <label className="block text-sm text-gray-500 mb-1">အမည် *</label>
                   <input type="text" name="customer_name" value={formData.customer_name} onChange={handleChange}
                     className={`input-field ${errors.customer_name ? 'border-red-400' : ''}`}
-                    placeholder="Your full name" />
+                    placeholder="သင့်နာမည် ထည့်ပါ" />
                   {errors.customer_name && <p className="text-red-500 text-xs mt-1">{errors.customer_name}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-500 mb-1">Phone Number * (Myanmar)</label>
+                  <label className="block text-sm text-gray-500 mb-1">ဖုန်းနံပါတ် * 🇲🇲</label>
                   <input type="tel" name="phone" value={formData.phone} onChange={handleChange}
                     className={`input-field ${errors.phone ? 'border-red-400' : ''}`}
                     placeholder="09-XXX-XXX-XXX" />
                   {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-500 mb-1">Delivery Address * 🇲🇲</label>
+                  <label className="block text-sm text-gray-500 mb-1">ပို့ဆောင်မည့် လိပ်စာ * 🇲🇲</label>
                   <textarea name="address" value={formData.address} onChange={handleChange} rows={3}
                     className={`input-field ${errors.address ? 'border-red-400' : ''}`}
-                    placeholder="Township, City, Myanmar" />
+                    placeholder="ရပ်ကွက်၊ မြို့နယ်၊ မြို့" />
                   {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-500 mb-1">Notes (optional)</label>
+                  <label className="block text-sm text-gray-500 mb-1">မှတ်ချက် (အချိုင်း/အရွယ်/အရောင်)</label>
                   <textarea name="notes" value={formData.notes} onChange={handleChange} rows={2}
-                    className="input-field" placeholder="Size, color, special instructions..." />
+                    className="input-field" placeholder="ဥပမာ — အနက်ရောင်၊ L အရွယ်..." />
                 </div>
               </div>
             </div>
 
-            {/* Payment Method */}
+            {/* Payment */}
             <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-800 mb-4">💳 Payment Method</h2>
+              <h2 className="text-lg font-bold text-gray-800 mb-4">💳 ငွေပေးချေမှု နည်းလမ်း</h2>
               <div className="space-y-3">
                 {paymentMethods.map((m) => (
                   <label key={m.id}
@@ -215,9 +246,7 @@ ${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} (${formatP
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold text-gray-800">{m.label}</p>
-                      {m.detail && (
-                        <p className="text-sm text-blue-600 font-mono">{m.detail.line1}</p>
-                      )}
+                      {m.detail && <p className="text-sm text-blue-600 font-mono">{m.detail.line1}</p>}
                     </div>
                     {formData.payment_method === m.id && (
                       <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
@@ -228,13 +257,30 @@ ${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} (${formatP
                 ))}
               </div>
 
-              {/* Payment detail box */}
+              {/* Payment instructions box */}
               {selectedPayment?.detail && (
-                <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                  <p className="text-gray-500 text-sm mb-2 font-medium">Transfer to:</p>
+                <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <p className="text-gray-700 font-bold mb-2">📤 ငွေလွှဲရမည့် နေရာ —</p>
                   <p className="text-gray-800 font-bold font-mono text-lg">{selectedPayment.detail.line1}</p>
                   <p className="text-gray-600 text-sm mt-1">{selectedPayment.detail.line2}</p>
-                  <p className="text-blue-500 text-xs mt-3 font-medium">📸 Send payment screenshot to our Telegram after paying</p>
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                    <p className="text-yellow-800 text-sm font-medium">⚠️ အရေးကြီးသည် —</p>
+                    <p className="text-yellow-700 text-sm mt-1">{selectedPayment.detail.instruction}</p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {telegramUrl && (
+                        <a href={telegramUrl} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0088cc] text-white text-xs font-semibold rounded-lg">
+                          ✈️ Telegram ပို့မည်
+                        </a>
+                      )}
+                      {viberUrl && (
+                        <a href={viberUrl}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#7360f2] text-white text-xs font-semibold rounded-lg">
+                          💜 Viber ပို့မည်
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -243,41 +289,43 @@ ${order.items.map((i: CartItem) => `${i.quantity}x ${i.product.title} (${formatP
           {/* ── Order Summary ── */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm sticky top-24">
-              <h2 className="text-lg font-bold text-gray-800 mb-4">🛒 Order Summary</h2>
+              <h2 className="text-lg font-bold text-gray-800 mb-4">🛒 မှာယူမည့် ပစ္စည်းများ</h2>
 
               <div className="space-y-3 mb-5 max-h-72 overflow-y-auto pr-1">
                 {items.map((item) => (
                   <div key={item.product.id} className="flex gap-3">
                     <div className="w-14 h-14 bg-blue-50 rounded-xl overflow-hidden flex-shrink-0">
-                      <img src={item.product.image_url} alt={item.product.title} className="w-full h-full object-cover" />
+                      <img src={item.product.image_url} alt={item.product.title} className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/100?text=?'; }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-gray-800 font-medium text-sm truncate">{item.product.title}</p>
-                      <p className="text-gray-400 text-xs">Qty: {item.quantity}</p>
+                      <p className="text-gray-400 text-xs">အရေအတွက် — {item.quantity} ခု</p>
+                      <p className="text-blue-600 font-bold text-sm">{formatPrice(item.product.price * item.quantity)}</p>
                     </div>
-                    <p className="text-blue-600 font-bold text-sm">{formatPrice((item.product.price * item.quantity))}</p>
                   </div>
                 ))}
               </div>
 
               <div className="border-t border-blue-50 pt-4 space-y-2 mb-5">
-                <div className="flex justify-between text-gray-400 text-sm"><span>Subtotal</span><span>{formatPrice(total)}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-gray-400">Delivery</span><span className="text-emerald-500 font-medium">Free 🎁</span></div>
+                <div className="flex justify-between text-gray-400 text-sm"><span>စုစုပေါင်း</span><span>{formatPrice(total)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-400">ပို့ဆောင်ခ</span><span className="text-emerald-500 font-medium">အခမဲ့ 🎁</span></div>
                 <div className="flex justify-between text-gray-800 font-bold text-lg pt-2 border-t border-blue-50">
-                  <span>Total</span><span className="text-blue-600">{formatPrice(total)}</span>
+                  <span>ပေးရမည့် ငွေ</span>
+                  <span className="text-blue-600">{formatPrice(total)}</span>
                 </div>
               </div>
 
               <button type="button" onClick={handleSubmit} disabled={isSubmitting}
                 className="w-full btn-primary py-4 rounded-xl text-base gap-2">
                 {isSubmitting
-                  ? <><Loader2 className="w-5 h-5 animate-spin" />Placing Order...</>
-                  : <>Place Order — {formatPrice(total)}</>
+                  ? <><Loader2 className="w-5 h-5 animate-spin" />အော်ဒါ ထည့်နေသည်...</>
+                  : <>အော်ဒါ ထည့်မည် — {formatPrice(total)}</>
                 }
               </button>
 
               <p className="text-gray-400 text-xs text-center mt-3">
-                🔒 Your information is secure
+                🔒 သင့် အချက်အလက်များ လုံခြုံစိတ်ချရပါသည်
               </p>
             </div>
           </div>
