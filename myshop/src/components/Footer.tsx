@@ -95,6 +95,28 @@ export function Footer() {
                   </span>
                 </a>
               )}
+              {settings.viber_number && (
+                <a href={`viber://chat?number=${settings.viber_number.replace(/\s/g,'').replace('+','')}`}
+                  className="flex items-center gap-3 text-sm group">
+                  <div className="w-8 h-8 bg-[#7360f2] rounded-lg flex items-center justify-center flex-shrink-0 group-hover:opacity-80 transition-opacity">
+                    <span className="text-base">💜</span>
+                  </div>
+                  <span className="text-blue-200 group-hover:text-white transition-colors text-sm">
+                    Viber: {settings.viber_number}
+                  </span>
+                </a>
+              )}
+              {settings.viber_channel && (
+                <a href={settings.viber_channel} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-3 text-sm group">
+                  <div className="w-8 h-8 bg-[#7360f2] rounded-lg flex items-center justify-center flex-shrink-0 group-hover:opacity-80 transition-opacity">
+                    <span className="text-base">📢</span>
+                  </div>
+                  <span className="text-blue-200 group-hover:text-white transition-colors text-sm">
+                    Viber Channel
+                  </span>
+                </a>
+              )}
               {settings.facebook_url && (
                 <a href={settings.facebook_url} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-3 text-sm group">
