@@ -10,7 +10,6 @@ import {
 import { useProducts } from '../context/ProductContext';
 import { Product, Order, ProductCategory, PRODUCT_CATEGORIES, OrderStatus, DEFAULT_INVENTORY, STOCK_LOCATIONS } from '../types';
 import { db, ADMIN_PASSWORD } from '../lib/firebase';
-import { formatPrice } from '../lib/currency';
 import { collection, getDocs, doc, updateDoc, addDoc, deleteDoc, query, orderBy, setDoc, getDoc } from 'firebase/firestore';
 
 // ─── Shop Settings Type ───────────────────────────────────────────────────────
