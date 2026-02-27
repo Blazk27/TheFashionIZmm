@@ -164,6 +164,31 @@ export function AdminPage() {
     finally { setIsSaving(false); }
   };
 
+  const handleDeleteAllOrders = async () => {
+    if (!confirm('⚠️ Delete ALL order history? This cannot be undone!')) return;
+    if (!confirm('Are you sure? ALL orders will be permanently deleted!')) return;
+    try {
+      const snap = await getDocs(collection(db, 'orders'));
+      const deletePromises = snap.docs.map(d => deleteDoc(doc(db, 'orders', d.id)));
+      await Promise.all(deletePromises);
+      setOrders([]);
+      alert('✅ All orders deleted successfully!');
+    } catch (err) {
+      console.error('Error deleting orders:', err);
+      alert('Failed to delete orders. Try again.');
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!confirm('Delete this order?')) return;
+    try {
+      await deleteDoc(doc(db, 'orders', orderId));
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+    } catch (err) {
+      console.error('Error deleting order:', err);
+    }
+  };
+
   const handleUpdateStatus = async (orderNumber: string, status: OrderStatus) => {
     try {
       const snap = await getDocs(collection(db, 'orders'));
@@ -404,12 +429,18 @@ export function AdminPage() {
         {/* ── ORDERS ── */}
         {activeTab === 'orders' && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap justify-between items-center gap-3">
               <p className="text-gray-500 text-sm">{orders.length} total orders</p>
-              <button onClick={exportOrdersCSV}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                <Download className="w-4 h-4" /> Export CSV
-              </button>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={exportOrdersCSV}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                  <Download className="w-4 h-4" /> Export CSV
+                </button>
+                <button onClick={handleDeleteAllOrders}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 text-red-500 rounded-xl text-sm hover:bg-red-100 transition-colors font-semibold">
+                  <Trash2 className="w-4 h-4" /> 🗑️ Delete ALL Orders
+                </button>
+              </div>
             </div>
             {orders.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
@@ -448,6 +479,10 @@ export function AdminPage() {
                           {status}
                         </button>
                       ))}
+                      <button onClick={() => handleDeleteOrder(order.id)}
+                        className="ml-auto flex items-center gap-1 px-3 py-1 bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 rounded-full text-xs font-semibold transition-colors">
+                        <Trash2 className="w-3 h-3" /> Delete
+                      </button>
                     </div>
                   </div>
                 ))}
